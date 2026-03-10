@@ -1,4 +1,4 @@
-module github.com/anomalyco/agentfile-email-bridge
+module github.com/iamangus/agentfile-email-bridge
 
 go 1.25.3
 

@@ -17,10 +17,10 @@ jobs:
       id: vars
       run: echo "tag=$(date +%s)" >> "$GITHUB_OUTPUT"
     - name: Build the tagged Docker image
-      run: docker build . --file Dockerfile --tag docker.pkg.github.com/anomalyco/agentfile-email-bridge/agentfile-email-bridge:latest
+      run: docker build . --file Dockerfile --tag docker.pkg.github.com/iamangus/agentfile-email-bridge/agentfile-email-bridge:latest
     - name: Push the latest Docker image
-      run: docker push docker.pkg.github.com/anomalyco/agentfile-email-bridge/agentfile-email-bridge:latest
+      run: docker push docker.pkg.github.com/iamangus/agentfile-email-bridge/agentfile-email-bridge:latest
     - name: Retag with timestamp
-      run: docker tag docker.pkg.github.com/anomalyco/agentfile-email-bridge/agentfile-email-bridge:latest docker.pkg.github.com/anomalyco/agentfile-email-bridge/agentfile-email-bridge:${{ steps.vars.outputs.tag }}
+      run: docker tag docker.pkg.github.com/iamangus/agentfile-email-bridge/agentfile-email-bridge:latest docker.pkg.github.com/iamangus/agentfile-email-bridge/agentfile-email-bridge:${{ steps.vars.outputs.tag }}
     - name: Push the tagged Docker image
-      run: docker push docker.pkg.github.com/anomalyco/agentfile-email-bridge/agentfile-email-bridge:${{ steps.vars.outputs.tag }}
+      run: docker push docker.pkg.github.com/iamangus/agentfile-email-bridge/agentfile-email-bridge:${{ steps.vars.outputs.tag }}
