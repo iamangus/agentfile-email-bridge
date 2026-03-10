@@ -1,0 +1,10 @@
+# Compiled binary
+agentfile-email-bridge
+
+# Config with secrets
+config.yaml
+
+# IDE
+.idea/
+.vscode/
+*.swp

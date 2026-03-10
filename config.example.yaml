@@ -1,0 +1,33 @@
+# agentfile-email-bridge configuration
+# Copy this file to config.yaml and fill in your values.
+
+# Which agentfile agent to trigger (can be overridden with --agent flag)
+agent: "researcher"
+
+# Agentfile REST API base URL
+agentfile_url: "http://localhost:3000"
+
+# Max emails processed concurrently (each gets its own goroutine)
+max_concurrent: 5
+
+# Agentfile HTTP client settings
+agentfile:
+  timeout: "5m"   # agent execution timeout (researcher can be slow)
+
+# IMAP settings (incoming mail)
+imap:
+  host: "imap.gmail.com"
+  port: 993
+  username: "agent@yourdomain.com"
+  password: "${EMAIL_PASSWORD}"    # env var substitution
+  tls: true
+  mailbox: "INBOX"                 # which folder to watch
+  poll_interval: "30s"             # how often to check for new mail
+
+# SMTP settings (outgoing replies)
+smtp:
+  host: "smtp.gmail.com"
+  port: 587
+  username: "agent@yourdomain.com"
+  password: "${EMAIL_PASSWORD}"
+  from: "agent@yourdomain.com"     # From address on replies
