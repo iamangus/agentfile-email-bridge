@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,19 +49,45 @@ type AgentfileConfig struct {
 // envVarRegex matches ${VAR_NAME} patterns in config values.
 var envVarRegex = regexp.MustCompile(`\$\{([^}]+)\}`)
 
-// LoadConfig reads and parses a YAML config file, expanding environment
-// variable references of the form ${VAR_NAME}.
+// LoadConfig loads configuration with the following precedence (highest wins):
+//  1. Environment variables
+//  2. YAML config file (if it exists)
+//  3. Built-in defaults
+//
+// The config file is optional. If path is empty or the file doesn't exist,
+// configuration is loaded purely from env vars and defaults.
 func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading config file: %w", err)
+	cfg := defaultConfig()
+
+	// Load YAML file if it exists.
+	if path != "" {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return nil, fmt.Errorf("reading config file: %w", err)
+			}
+			// File doesn't exist — that's fine, continue with env vars.
+		} else {
+			expanded := expandEnvVars(string(data))
+			if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil {
+				return nil, fmt.Errorf("parsing config YAML: %w", err)
+			}
+		}
 	}
 
-	// Expand ${ENV_VAR} references before parsing YAML.
-	expanded := expandEnvVars(string(data))
+	// Apply environment variable overrides.
+	applyEnvOverrides(cfg)
 
-	cfg := &Config{
-		// Defaults
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("config validation: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// defaultConfig returns a Config populated with built-in defaults.
+func defaultConfig() *Config {
+	return &Config{
 		AgentfileURL:  "http://localhost:3000",
 		MaxConcurrent: 5,
 		IMAP: IMAPConfig{
@@ -76,16 +103,76 @@ func LoadConfig(path string) (*Config, error) {
 			Timeout: 5 * time.Minute,
 		},
 	}
+}
 
-	if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil {
-		return nil, fmt.Errorf("parsing config YAML: %w", err)
+// applyEnvOverrides reads environment variables and overrides any config
+// field that has a corresponding env var set. Empty env vars are ignored
+// (they don't blank out a value from the YAML file).
+func applyEnvOverrides(cfg *Config) {
+	if v := os.Getenv("AGENT"); v != "" {
+		cfg.Agent = v
+	}
+	if v := os.Getenv("AGENTFILE_URL"); v != "" {
+		cfg.AgentfileURL = v
+	}
+	if v := os.Getenv("MAX_CONCURRENT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MaxConcurrent = n
+		}
 	}
 
-	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("config validation: %w", err)
+	// IMAP
+	if v := os.Getenv("IMAP_HOST"); v != "" {
+		cfg.IMAP.Host = v
+	}
+	if v := os.Getenv("IMAP_PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.IMAP.Port = n
+		}
+	}
+	if v := os.Getenv("IMAP_USERNAME"); v != "" {
+		cfg.IMAP.Username = v
+	}
+	if v := os.Getenv("IMAP_PASSWORD"); v != "" {
+		cfg.IMAP.Password = v
+	}
+	if v := os.Getenv("IMAP_TLS"); v != "" {
+		cfg.IMAP.TLS = v == "true" || v == "1"
+	}
+	if v := os.Getenv("IMAP_MAILBOX"); v != "" {
+		cfg.IMAP.Mailbox = v
+	}
+	if v := os.Getenv("IMAP_POLL_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			cfg.IMAP.PollInterval = d
+		}
 	}
 
-	return cfg, nil
+	// SMTP
+	if v := os.Getenv("SMTP_HOST"); v != "" {
+		cfg.SMTP.Host = v
+	}
+	if v := os.Getenv("SMTP_PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.SMTP.Port = n
+		}
+	}
+	if v := os.Getenv("SMTP_USERNAME"); v != "" {
+		cfg.SMTP.Username = v
+	}
+	if v := os.Getenv("SMTP_PASSWORD"); v != "" {
+		cfg.SMTP.Password = v
+	}
+	if v := os.Getenv("SMTP_FROM"); v != "" {
+		cfg.SMTP.From = v
+	}
+
+	// Agentfile client
+	if v := os.Getenv("AGENTFILE_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			cfg.Agentfile.Timeout = d
+		}
+	}
 }
 
 // expandEnvVars replaces all ${VAR_NAME} occurrences with the corresponding
@@ -103,28 +190,28 @@ func (c *Config) validate() error {
 	var missing []string
 
 	if c.Agent == "" {
-		missing = append(missing, "agent")
+		missing = append(missing, "agent (env: AGENT)")
 	}
 	if c.IMAP.Host == "" {
-		missing = append(missing, "imap.host")
+		missing = append(missing, "imap.host (env: IMAP_HOST)")
 	}
 	if c.IMAP.Username == "" {
-		missing = append(missing, "imap.username")
+		missing = append(missing, "imap.username (env: IMAP_USERNAME)")
 	}
 	if c.IMAP.Password == "" {
-		missing = append(missing, "imap.password")
+		missing = append(missing, "imap.password (env: IMAP_PASSWORD)")
 	}
 	if c.SMTP.Host == "" {
-		missing = append(missing, "smtp.host")
+		missing = append(missing, "smtp.host (env: SMTP_HOST)")
 	}
 	if c.SMTP.Username == "" {
-		missing = append(missing, "smtp.username")
+		missing = append(missing, "smtp.username (env: SMTP_USERNAME)")
 	}
 	if c.SMTP.Password == "" {
-		missing = append(missing, "smtp.password")
+		missing = append(missing, "smtp.password (env: SMTP_PASSWORD)")
 	}
 	if c.SMTP.From == "" {
-		missing = append(missing, "smtp.from")
+		missing = append(missing, "smtp.from (env: SMTP_FROM)")
 	}
 
 	if len(missing) > 0 {

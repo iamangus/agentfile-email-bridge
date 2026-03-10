@@ -10,17 +10,26 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "config.yaml", "path to configuration file")
+	configPath := flag.String("config", "config.yaml", "path to configuration file (optional if using env vars)")
 	agentOverride := flag.String("agent", "", "override agent name from config")
 	flag.Parse()
 
-	// Load configuration.
-	cfg, err := LoadConfig(*configPath)
+	// If the default config path was not explicitly changed and the file
+	// doesn't exist, pass empty so LoadConfig relies purely on env vars.
+	path := *configPath
+	if path == "config.yaml" {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			path = ""
+		}
+	}
+
+	// Load configuration (YAML file + env var overrides).
+	cfg, err := LoadConfig(path)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// CLI flag overrides config file.
+	// CLI flag overrides config file and env vars.
 	if *agentOverride != "" {
 		cfg.Agent = *agentOverride
 	}

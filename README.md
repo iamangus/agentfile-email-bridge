@@ -21,42 +21,67 @@ A standalone Go service that polls an IMAP mailbox for new emails, forwards the 
 go build -o agentfile-email-bridge .
 ```
 
-2. **Configure**
+2. **Configure** (pick one)
 
+Option A — env vars only (no config file needed):
+```bash
+export AGENT="researcher"
+export IMAP_HOST="imap.gmail.com"
+export IMAP_USERNAME="agent@yourdomain.com"
+export IMAP_PASSWORD="your-app-password"
+export SMTP_HOST="smtp.gmail.com"
+export SMTP_USERNAME="agent@yourdomain.com"
+export SMTP_PASSWORD="your-app-password"
+export SMTP_FROM="agent@yourdomain.com"
+```
+
+Option B — config file:
 ```bash
 cp config.example.yaml config.yaml
 # Edit config.yaml with your IMAP/SMTP credentials and agent name
 ```
 
-3. **Set secrets via environment variables**
+3. **Run**
 
 ```bash
-export EMAIL_PASSWORD="your-app-password"
-```
-
-4. **Run**
-
-```bash
-./agentfile-email-bridge --config config.yaml
+./agentfile-email-bridge
 ```
 
 ## CLI Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--config` | `config.yaml` | Path to configuration file |
-| `--agent` | _(from config)_ | Override agent name from config |
+| `--config` | `config.yaml` | Path to configuration file (optional if using env vars) |
+| `--agent` | _(from config)_ | Override agent name from config/env |
 
 ## Configuration
 
-See [`config.example.yaml`](config.example.yaml) for a fully commented example. All fields supporting `${ENV_VAR}` syntax will have environment variables expanded at load time.
+All settings can come from a YAML file, environment variables, or both. Precedence (highest wins): **CLI flags > env vars > YAML file > defaults**.
 
-### Key Settings
+The config file is optional. If no `config.yaml` exists and no `--config` is passed, the bridge configures entirely from env vars.
 
-- **`agent`** — The agentfile agent to route emails to (e.g. `researcher`, `assistant`)
-- **`agentfile_url`** — Base URL of the agentfile REST API
-- **`imap.poll_interval`** — How often to check for new mail (default `30s`)
-- **`agentfile.timeout`** — HTTP timeout for agent calls (default `5m`)
+See [`config.example.yaml`](config.example.yaml) for a fully commented example.
+
+### Environment Variables
+
+| Env Var | Required | Default | Description |
+|---------|----------|---------|-------------|
+| `AGENT` | **yes** | | Agent name to trigger (e.g. `researcher`) |
+| `AGENTFILE_URL` | no | `http://localhost:3000` | Agentfile REST API base URL |
+| `MAX_CONCURRENT` | no | `5` | Max emails processed in parallel |
+| `IMAP_HOST` | **yes** | | IMAP server hostname |
+| `IMAP_PORT` | no | `993` | IMAP server port |
+| `IMAP_USERNAME` | **yes** | | IMAP login username |
+| `IMAP_PASSWORD` | **yes** | | IMAP login password |
+| `IMAP_TLS` | no | `true` | Use TLS (`true`/`false`) |
+| `IMAP_MAILBOX` | no | `INBOX` | IMAP folder to watch |
+| `IMAP_POLL_INTERVAL` | no | `30s` | Poll frequency (Go duration) |
+| `SMTP_HOST` | **yes** | | SMTP server hostname |
+| `SMTP_PORT` | no | `587` | SMTP server port |
+| `SMTP_USERNAME` | **yes** | | SMTP login username |
+| `SMTP_PASSWORD` | **yes** | | SMTP login password |
+| `SMTP_FROM` | **yes** | | From address on outgoing replies |
+| `AGENTFILE_TIMEOUT` | no | `5m` | HTTP timeout for agent calls (Go duration) |
 
 ## How It Works
 
@@ -70,9 +95,24 @@ See [`config.example.yaml`](config.example.yaml) for a fully commented example. 
 
 ## Docker
 
+With env vars (no config file):
 ```bash
 docker build -t agentfile-email-bridge .
 
+docker run \
+  -e AGENT=researcher \
+  -e IMAP_HOST=imap.gmail.com \
+  -e IMAP_USERNAME=agent@yourdomain.com \
+  -e IMAP_PASSWORD=your-app-password \
+  -e SMTP_HOST=smtp.gmail.com \
+  -e SMTP_USERNAME=agent@yourdomain.com \
+  -e SMTP_PASSWORD=your-app-password \
+  -e SMTP_FROM=agent@yourdomain.com \
+  agentfile-email-bridge
+```
+
+With a config file:
+```bash
 docker run -v ./config.yaml:/etc/agentfile-email-bridge/config.yaml \
   -e EMAIL_PASSWORD="your-password" \
   agentfile-email-bridge

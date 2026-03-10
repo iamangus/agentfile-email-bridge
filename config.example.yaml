@@ -1,33 +1,35 @@
 # agentfile-email-bridge configuration
 # Copy this file to config.yaml and fill in your values.
+# This file is optional — all settings can be configured via environment
+# variables instead. See README.md for the full env var reference.
 
-# Which agentfile agent to trigger (can be overridden with --agent flag)
+# Which agentfile agent to trigger (env: AGENT, flag: --agent)
 agent: "researcher"
 
-# Agentfile REST API base URL
+# Agentfile REST API base URL (env: AGENTFILE_URL)
 agentfile_url: "http://localhost:3000"
 
-# Max emails processed concurrently (each gets its own goroutine)
+# Max emails processed concurrently (env: MAX_CONCURRENT)
 max_concurrent: 5
 
 # Agentfile HTTP client settings
 agentfile:
-  timeout: "5m"   # agent execution timeout (researcher can be slow)
+  timeout: "5m"   # agent execution timeout (env: AGENTFILE_TIMEOUT)
 
 # IMAP settings (incoming mail)
 imap:
-  host: "imap.gmail.com"
-  port: 993
-  username: "agent@yourdomain.com"
-  password: "${EMAIL_PASSWORD}"    # env var substitution
-  tls: true
-  mailbox: "INBOX"                 # which folder to watch
-  poll_interval: "30s"             # how often to check for new mail
+  host: "imap.gmail.com"              # env: IMAP_HOST
+  port: 993                            # env: IMAP_PORT
+  username: "agent@yourdomain.com"     # env: IMAP_USERNAME
+  password: "${EMAIL_PASSWORD}"        # env: IMAP_PASSWORD
+  tls: true                            # env: IMAP_TLS
+  mailbox: "INBOX"                     # env: IMAP_MAILBOX
+  poll_interval: "30s"                 # env: IMAP_POLL_INTERVAL
 
 # SMTP settings (outgoing replies)
 smtp:
-  host: "smtp.gmail.com"
-  port: 587
-  username: "agent@yourdomain.com"
-  password: "${EMAIL_PASSWORD}"
-  from: "agent@yourdomain.com"     # From address on replies
+  host: "smtp.gmail.com"              # env: SMTP_HOST
+  port: 587                            # env: SMTP_PORT
+  username: "agent@yourdomain.com"     # env: SMTP_USERNAME
+  password: "${EMAIL_PASSWORD}"        # env: SMTP_PASSWORD
+  from: "agent@yourdomain.com"        # env: SMTP_FROM
