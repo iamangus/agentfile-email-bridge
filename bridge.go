@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -137,8 +138,9 @@ func (b *Bridge) processEmail(ctx context.Context, email Email) {
 		return
 	}
 
-	// Call the agentfile agent.
-	response, err := b.agentfile.RunAgent(ctx, b.config.Agent, email.Body)
+	// Call the agentfile agent with a formatted message that includes metadata.
+	message := formatAgentMessage(email)
+	response, err := b.agentfile.RunAgent(ctx, b.config.Agent, message)
 	if err != nil {
 		log.Printf("Error calling agent %q for uid=%d: %v", b.config.Agent, email.UID, err)
 		// Leave UNSEEN so it will be retried on next poll.
@@ -162,4 +164,17 @@ func (b *Bridge) processEmail(ctx context.Context, email Email) {
 	}
 
 	log.Printf("Successfully processed email uid=%d from=%s", email.UID, email.From)
+}
+
+// formatAgentMessage builds the message string sent to the agent, wrapping the
+// email body with a structured preamble that includes sender and subject metadata.
+func formatAgentMessage(email Email) string {
+	return fmt.Sprintf(`You have received the following research request via email!
+
+From: %s
+Subject: %s
+
+---
+
+%s`, email.From, email.Subject, email.Body)
 }
