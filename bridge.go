@@ -170,6 +170,7 @@ func (b *Bridge) processEmail(ctx context.Context, email Email) {
 // email body with a structured preamble that includes sender and subject metadata.
 func formatAgentMessage(email Email) string {
 	return fmt.Sprintf(`You have received the following research request via email!
+Your response will be sent back to the sender as a plain text email, so do not use markdown formatting in your response.
 
 From: %s
 Subject: %s
